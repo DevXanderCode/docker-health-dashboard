@@ -1,0 +1,31 @@
+#!/opt/homebrew/bin/bash
+# remember to change this when deploying. to #!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+# Constants & Configuration
+REFRESH_INTERVAL=5
+WATCH_MODE=false
+VERSION="1.0.0"
+SCRIPT_NAME=$(basename $0)
+
+CPU_WARN=50
+CPU_CRIT=80
+MEM_WARN=60
+MEM_CRIT=85
+
+if tput colors &> /dev/null && ((tput colors >= 8)); then
+    RESET=$(tput sgr0)
+    BOLD=$(tput bold)
+    DIM=$(tput dim)
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    BLUE=$(tput setaf 4)
+    CYAN=$(tput setaf 6)
+    WHITE=$(tput setaf 7)
+else
+    RESET=""BOLD=""DIM=""
+    RED=""GREEN=""YELLOW=""BLUE=""CYAN=""WHITE=""
+fi
