@@ -47,11 +47,11 @@ if ! [[ "$REFRESH_INTERVAL" =~ ^[1-9]+$ ]] || (( "$REFRESH_INTERVAL" < 0 )); the
 fi
 
 check_dependencies() {
-    local missing = ()
+    local missing=()
 
     for cmd in docker awk tput; do
-        if ! command -v "$cmd" &>/dev/null;
-            missing+="$cmd"
+        if ! command -v "$cmd" &>/dev/null; then
+            missing+=("$cmd")
         fi
     done
 
