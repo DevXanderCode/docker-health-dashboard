@@ -15,7 +15,7 @@ CPU_CRIT=80
 MEM_WARN=60
 MEM_CRIT=85
 
-if tput colors &> /dev/null && ((tput colors >= 8)); then
+if tput colors &> /dev/null && (( $(tput colors) >= 8 )); then
     RESET=$(tput sgr0)
     BOLD=$(tput bold)
     DIM=$(tput dim)
@@ -29,3 +29,39 @@ else
     RESET=""BOLD=""DIM=""
     RED=""GREEN=""YELLOW=""BLUE=""CYAN=""WHITE=""
 fi
+
+while getopts ":wi:hv" opt; do
+    case $opt in
+        w) WATCH_MODE=true ;;
+        i) REFRESH_INTERVAL="$OPTARG" ;;
+        h) usage; exit 0;;
+        v) echo "v${VERSION}"; exit 0;;
+        :) echo "Option -${OPTARG} require an argument."; exit 1;;
+        \?) echo "Unknown option -${OPTARG}"; exit 1;;
+    esac
+done
+
+if ! [[ "$REFRESH_INTERVAL" =~ ^[1-9]+$ ]] || (( "$REFRESH_INTERVAL" < 0 )); then
+    echo "Interval must be a positive integer."
+    exit 1;
+fi
+
+check_dependencies() {
+    local missing = ()
+
+    for cmd in docker awk tput; do
+        if ! command -v "$cmd" &>/dev/null;
+            missing+="$cmd"
+        fi
+    done
+
+    if (( "${#missing[@]}" > 0 )); then
+        echo "Missing dependencies- ${missing[*]}";
+        exit 1;
+    fi
+
+    if ! docker info &>/dev/null; then
+        echo "Cannot connect to Docker daemon";
+        exit 1;
+    fi
+}
