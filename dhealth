@@ -110,3 +110,23 @@ check_dependencies() {
 # ------------------------------------------------------------------------------
 # COLOR HELPERS
 # ------------------------------------------------------------------------------
+
+# Color a numeric metric against warn/crit thresholds
+# Usage: colorize_metric <value_float> <warn> <crit>
+colorize_metric() {
+    local value="$1"
+    local warn="$2"
+    local crit="$3"
+
+    # Strip % if present and compare as integers (floor)
+    local numeric
+    numeric=$(echo "$value" | awk '{ printf "%d\n", $1}')
+
+    if (( "$numeric" > "$crit" )); then
+        echo "${RED}${BOLD}${value}${RESET}"
+    elif (( "$numeric" > "$warn" )); then
+        echo "${YELLOW}${value}${RESET}"
+    else
+        echo "${GREEN}${value}${RESET}"
+    fi
+}
