@@ -146,3 +146,32 @@ colorize_status() {
         *)                  echo "${DIM}${status}${RESET}" ;;
     esac
 }
+
+# ------------------------------------------------------------------------------
+# HEADER / FOOTER
+# ------------------------------------------------------------------------------
+print_header() {
+    local term_width
+    term_width=$(tput cols 2>/dev/null || 100)
+
+    local timestamp
+    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+
+    local title=" 🐳 Docker Health Dashboard "
+    local title_len=${#title}
+    local padding=$(( (term_width - title_len) / 2 ))
+
+    echo ""
+    printf '%*s' "$padding" '' | tr ' ' '-'
+    printf '%s' "${BOLD}${CYAN}${title}${RESET}"
+    printf '%*s\n' "$padding" '' | tr ' ' '-'
+    printf " ${DIM}Host:${RESET} ${WHITE}$(hostname)${RESET}   ${DIM}Time:${RESET}${WHITE}${timestamp}${RESET}"
+
+    if $WATCH_MODE; then
+        printf "   ${DIM}Refreshing every ${REFRESH_INTERVAL}s — Ctrl+C to exit${RESET}"
+    fi
+
+    echo -e "\n"
+}
+
+print_header
