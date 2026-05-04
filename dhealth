@@ -174,4 +174,23 @@ print_header() {
     echo -e "\n"
 }
 
-print_header
+print_footer() {
+    local total="$1"
+    local running="$2"
+    local stopped="$3"
+
+    echo ""
+    echo "        ${DIM}Total: ${WHITE}${total}${RESET}"
+    echo "      ${GREEN}Running: ${running}${RESET}"
+    echo "${RED}Stopped/Other: ${stopped}${RESET}"
+
+    # System-level resource summary
+    local mem_total mem_used mem_pct
+    mem_total=$(free -m | awk '/^Mem:/ {print $2}')
+    mem_used=$(free -m | awk '/^Mem:/{print $3}')
+    # mem_pct=$(awk "BEGIN {printf \"%d\", ($mem_used/$mem_total)*100}")
+    mem_pct=$(awk -v mem_used=$mem_used -v mem_total=$mem_total 'BEGIN {printf "%d", (mem_used/mem_total)*100}')
+
+}
+
+print_footer 12 34 543
