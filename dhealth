@@ -10,11 +10,15 @@ WATCH_MODE=false
 VERSION="1.0.0"
 SCRIPT_NAME=$(basename $0)
 
-CPU_WARN=50
-CPU_CRIT=80
-MEM_WARN=60
-MEM_CRIT=85
+# CPU/MEM thresholds for color coding
+CPU_WARN=50 # % — green below, yellow above
+CPU_CRIT=80 # % — red above
+MEM_WARN=60 # % — green below, yellow above
+MEM_CRIT=85 # % — red above
 
+# ------------------------------------------------------------------------------
+# COLORS & FORMATTING (degrade gracefully if terminal doesn't support them)
+# ------------------------------------------------------------------------------
 if tput colors &> /dev/null && (( $(tput colors) >= 8 )); then
     RESET=$(tput sgr0)
     BOLD=$(tput bold)
@@ -30,14 +34,21 @@ else
     RED=""GREEN=""YELLOW=""BLUE=""CYAN=""WHITE=""
 fi
 
+# ------------------------------------------------------------------------------
+# LOGGING HELPERS
+# ------------------------------------------------------------------------------
+log_info() { echo "${CYAN}[INFO] ${RESET}$*"; }
+log_warn() { echo "${YELLOW}[WARN] ${RESET}$*" >&2;}
+log_error() { echo "${RED}[ERROR] ${RESET}$*" >&2; }
+
 while getopts ":wi:hv" opt; do
     case $opt in
         w) WATCH_MODE=true ;;
         i) REFRESH_INTERVAL="$OPTARG" ;;
         h) usage; exit 0;;
-        v) echo "v${VERSION}"; exit 0;;
-        :) echo "Option -${OPTARG} require an argument."; exit 1;;
-        \?) echo "Unknown option -${OPTARG}"; exit 1;;
+        v) log_info "v${VERSION}"; exit 0;;
+        :) log_error "Option -${OPTARG} require an argument."; exit 1;;
+        \?) log_error "Unknown option -${OPTARG}"; exit 1;;
     esac
 done
 
