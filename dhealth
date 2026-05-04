@@ -27,6 +27,7 @@ if tput colors &> /dev/null && (( $(tput colors) >= 8 )); then
     GREEN=$(tput setaf 2)
     YELLOW=$(tput setaf 3)
     BLUE=$(tput setaf 4)
+    MAGENTA=$(tput setaf 5)
     CYAN=$(tput setaf 6)
     WHITE=$(tput setaf 7)
 else
@@ -129,4 +130,19 @@ colorize_metric() {
     else
         echo "${GREEN}${value}${RESET}"
     fi
+}
+
+# Color Container Status
+colorize_status() {
+    local status="$1"
+
+    case "${status,,}" in 
+        running)            echo "${GREEN}${BOLD}● running${RESET}" ;;
+        exited*|dead*)      echo "${RED}${BOLD}✖ ${status}${RESET}" ;;
+        paused*)            echo "${YELLOW}⏸ ${status}${RESET}" ;;
+        restarting*)        echo "${MAGENTA}↻ ${status}${RESET}" ;;
+        unhealthy*)         echo "${RED}${BOLD}⚠ ${status}${RESET}" ;;
+        healthy*)           echo "${GREEN}✔ ${status}${RESET}" ;;
+        *)                  echo "${DIM}${status}${RESET}" ;;
+    esac
 }
