@@ -210,4 +210,31 @@ print_footer() {
     echo ""
 }
 
-print_footer 12 34 543
+# ------------------------------------------------------------------------------
+# TABLE RENDERER
+# ------------------------------------------------------------------------------
+print_table() {
+    # Column Widths
+    local W_NAME=22
+    local W_STATUS=18
+    local W_CPU=10
+    local W_MEM=22
+    local W_MEM_PCT=10
+    local W_NET=22
+    local W_BLK=22
+    local W_UPTIME=20
+
+    # Header row
+    printf "${BOLD}${BLUE}"
+    printf "  %-${W_NAME}s %-${W_STATUS}s %${W_CPU}s %-${W_MEM}s %${W_MEM_PCT}s %-${W_NET}s %-${W_BLK}s %-${W_UPTIME}s\n" \
+    "CONTAINER" "STATUS" "CPU %" "MEM USAGE / LIMIT" "MEM %" "NET I/O" "BLOCK I/O" "UPTIME"
+    printf "${RESET}"
+
+    # Separator
+    local total_w=$((W_NAME + W_STATUS + W_CPU + W_MEM + W_MEM_PCT + W_NET + W_BLK + W_UPTIME + 14))
+    printf "  "
+    printf "%*s" "$total_w" | tr " " "-"
+    echo ""
+}
+
+print_table
