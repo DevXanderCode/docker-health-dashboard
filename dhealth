@@ -235,6 +235,35 @@ print_table() {
     printf "  "
     printf "%*s" "$total_w" | tr " " "-"
     echo ""
+
+    # ------------------------------------------------------------------------------
+    # Collect all container IDs + names + statuses (including stopped containers)
+    # ------------------------------------------------------------------------------
+
+    local all_containers
+    all_containers=$(docker ps -a --format "{{.ID}}|{{.Names}}|{{.Status}}") || {
+        log_error "Failed to list containers."
+        return 1;=
+    }
+
+    if [[ -z "$all_containers" ]]; then
+        echo ""
+        printf "  ${DIM}No containers found.${RESET}"
+        echo ""
+        return 0
+    fi
+
+    # ------------------------------------------------------------------------------
+    # Collect docker stats for running containers (non-blocking, single snapshot)
+    # ------------------------------------------------------------------------------
+    local stats_output
+    stats_output=$(docker stats --no-stream --format \
+        "{{.ID}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}" \
+        2>/dev/null) || true
+
+    # Build a look up: container_short_id -> stats
+    declare -A stats_map
+    
 }
 
 print_table
