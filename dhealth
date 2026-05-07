@@ -263,7 +263,72 @@ print_table() {
 
     # Build a look up: container_short_id -> stats
     declare -A stats_map
-    
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue;
+        local sid
+        sid=$(echo "$line" | cut -d"|" -f1)
+        stats_map["$sid"]="$line"
+    done <<< "$stats_output"
+
+    # ------------------------------------------------------------------------------
+    # Counters
+    # ------------------------------------------------------------------------------
+    local total=0 running_count=0 stopped_count=0
+
+    # ------------------------------------------------------------------------------
+    # Render each container row
+    # ------------------------------------------------------------------------------
+    while IFS="|" read -r cid cname cstatus; do
+        [[ -z "$cid" ]] && continue
+        total=$(( total + 1))
+
+        local short_id="${cid:0:12}"
+
+    done <<< "$all_containers"
+
+    # Return counters via global vars (subshell-safe alternative: temp file or echo)
+    TOTAL_CONTAINERS=$total
+    RUNNING_CONTAINERS=$running_count
+    STOPPED_CONTAINERS=$stopped_count
 }
 
-print_table
+# ------------------------------------------------------------------------------
+# MAIN RENDER LOOP
+# ------------------------------------------------------------------------------
+render_dashboard() {
+    # In watch mode, clear screen each cycle
+    $WATCH_MODE && clear
+
+    print_header
+
+    # These globals are set inside print_table
+    TOTAL_CONTAINERS=0
+    RUNNING_CONTAINERS=0
+    STOPPED_CONTAINERS=0
+
+    print_table
+
+    print_footer "$TOTAL_CONTAINERS" "$RUNNING_CONTAINERS" "$STOPPED_CONTAINERS"
+}
+
+# ------------------------------------------------------------------------------
+# ENTRY POINT
+# ------------------------------------------------------------------------------
+
+main() {
+    check_dependencies
+
+    if "$WATCH_MODE"; then
+        # Trap Ctrl+C for a clean exit message
+        trap 'echo -e "\n${DIM}Dashboard stopped.${RESET}"; exit 0' INT TERM
+
+        while true; do
+            render_dashboard
+            sleep "$REFRESH_INTERVAL"
+        done
+    else
+        render_dashboard
+    fi
+}
+
+main
