@@ -284,6 +284,26 @@ print_table() {
 
         local short_id="${cid:0:12}"
 
+        # Truncate name if too long
+        local display_name="${cname}"
+        if (( ${#display_name} > $(( W_NAME - 2)) )); then
+            display_name="${display_name:0:$((W_NAME - 8))}...${display_name:$((${#display_name} - 5))}"
+        fi
+
+        # Colorize Status
+        local colored_status
+        colored_status=$(colored_status "$cstatus")
+
+        # Counting Running vs stopped
+        if [[ "${cstatus,,}" == *"up"* ]]; then
+            running_count=$((running_count + 1))
+        else
+            stopped_count=$((stopped_count + 1))
+        fi
+
+        # Extract Uptime from Status field. e.g ("Up 3 hours" -> "3 hours")
+        
+
     done <<< "$all_containers"
 
     # Return counters via global vars (subshell-safe alternative: temp file or echo)
