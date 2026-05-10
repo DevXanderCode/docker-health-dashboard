@@ -302,7 +302,18 @@ print_table() {
         fi
 
         # Extract Uptime from Status field. e.g ("Up 3 hours" -> "3 hours")
-        
+        local uptime_display="-"
+        if [[ "$cstatus" =~ ^Up (.+)/ ]]; then
+            uptime_display="${BASH_REMATCH[1]}"
+
+            # Trim health suffix if present
+            uptime_display=$(echo "$uptime_display" | sed 's/ (.*)//')
+        fi
+        if (( ${#uptime_display} > $(( W_UPTIME - 2 )) )); then
+            uptime_display="${uptime_display:0:$((W_UPTIME - 3))}..."
+        fi
+
+
 
     done <<< "$all_containers"
 
