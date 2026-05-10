@@ -292,7 +292,7 @@ print_table() {
 
         # Colorize Status
         local colored_status
-        colored_status=$(colored_status "$cstatus")
+        colored_status=$(colorize_status "$cstatus")
 
         # Counting Running vs stopped
         if [[ "${cstatus,,}" == *"up"* ]]; then
@@ -303,7 +303,7 @@ print_table() {
 
         # Extract Uptime from Status field. e.g ("Up 3 hours" -> "3 hours")
         local uptime_display="-"
-        if [[ "$cstatus" =~ ^Up (.+)/ ]]; then
+        if [[ "$cstatus" =~ ^Up\ (.+)/ ]]; then
             uptime_display="${BASH_REMATCH[1]}"
 
             # Trim health suffix if present
