@@ -1,5 +1,4 @@
-#!/opt/homebrew/bin/bash
-# remember to change this when deploying. to #!/usr/bin/env bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 IFS=$'\n\t'

@@ -1,0 +1,164 @@
+# Docker Health Dashboard
+
+A lightweight terminal dashboard for monitoring Docker container health and host resources. `dhealth` makes it easy to inspect container status, CPU/memory usage, network and block I/O, and uptime at a glance.
+
+## Key Features
+
+- Real-time Docker container health insights
+- Color-coded CPU, memory, and disk thresholds
+- Status-aware container rendering with healthy/unhealthy indicators
+- Optional watch mode for continuous refresh
+- Host-level summary with memory, load average, and root disk usage
+- Single-file Bash implementation for fast setup and portability
+
+## Why Use This Project
+
+This dashboard is ideal for developers and operators who need an unobtrusive terminal view of Docker workload health without installing a full monitoring stack. It ships as a single executable Bash script and is designed for quick deployment in Linux-based Docker hosts.
+
+## Requirements
+
+- Docker CLI installed and configured
+- Docker daemon accessible to the current user
+- Bash shell (`bash`)
+- `awk`
+- `tput`
+- `free` (Linux hosts) or compatible alternative
+
+> Note: The script currently uses `free -m` for host memory metrics. On macOS, install `free` via Homebrew (`brew install inetutils`) or run the dashboard from a Linux-based environment.
+
+## Installation
+
+1. Clone this repository or copy the `dhealth` script into your project directory.
+2. Ensure the script is executable:
+
+```bash
+chmod +x ./dhealth
+```
+
+3. Optionally update the shebang to use an environment-aware Bash path for portability:
+
+```bash
+#!/usr/bin/env bash
+```
+
+## Usage
+
+Run the dashboard once:
+
+```bash
+./dhealth
+```
+
+Start live watch mode with automatic refresh every 5 seconds:
+
+```bash
+./dhealth -w
+```
+
+Change the refresh interval:
+
+```bash
+./dhealth -w -i 10
+```
+
+Show help:
+
+```bash
+./dhealth -h
+```
+
+Show version:
+
+```bash
+./dhealth -v
+```
+
+## Configuration
+
+The dashboard uses built-in threshold values for color coding:
+
+- CPU warning: `50%`
+- CPU critical: `80%`
+- Memory warning: `60%`
+- Memory critical: `85%`
+- Root disk warning: `70%`
+- Root disk critical: `90%`
+
+If you want to adjust these values, update the constants at the top of `dhealth`:
+
+```bash
+CPU_WARN=50
+CPU_CRIT=80
+MEM_WARN=60
+MEM_CRIT=85
+DISK_WARN=70
+DISK_CRIT=90
+```
+
+## Contribution Guidelines
+
+Contributions are welcome and appreciated. Please follow these guidelines to keep the project professional, maintainable, and easy to collaborate on.
+
+### How to Contribute
+
+1. Fork the repository.
+2. Create a topic branch with a descriptive name, for example:
+   - `feature/improve-watch-mode`
+   - `fix/status-color-handling`
+3. Make focused, incremental changes.
+4. Submit a pull request with a clear summary of the work and any validation steps.
+
+### Issue Reporting
+
+When opening an issue, include:
+
+- A concise title and description
+- Steps to reproduce the problem
+- The command you ran
+- Host environment details (OS, Docker version, Bash version)
+- Expected vs actual behavior
+- Any error messages or terminal output
+
+### Pull Request Expectations
+
+- Keep each pull request small and focused
+- Include a clear description of why the change is needed
+- Reference related issues when applicable
+- Run manual validation for the feature or fix
+- Update documentation if behavior or user-facing options change
+
+### Coding Standards
+
+- Preserve the existing Bash style and script structure
+- Use `set -euo pipefail` and robust input validation
+- Prefer explicit error handling and fail-fast behavior
+- Keep output readable for terminal use
+- Limit dependencies to the required runtime tools
+
+### Testing and Validation
+
+Although there is no automated test suite today, ensure your changes are validated locally by:
+
+- Running `./dhealth` in snapshot mode
+- Running `./dhealth -w -i 5` in watch mode
+- Verifying container rows and host metrics render correctly
+- Confirming color thresholds behave as expected
+
+### Additional Notes
+
+- If you add new features, update this README so users can discover them easily.
+- Maintain a professional commit history with descriptive messages.
+- Use native shell utilities where possible and avoid introducing unnecessary external dependencies.
+
+## Project Maintenance
+
+This repository is kept minimal and functional. Future enhancements may include:
+
+- macOS native compatibility fixes
+- Automated tests or shellcheck validation
+- Config file support for custom thresholds
+- Additional container metrics such as restart count or health check details
+
+---
+
+Thank you for using Docker Health Dashboard. Contributions and improvements are always welcome.
