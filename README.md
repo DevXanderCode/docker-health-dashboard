@@ -35,12 +35,6 @@ This dashboard is ideal for developers and operators who need an unobtrusive ter
 chmod +x ./dhealth
 ```
 
-3. Optionally update the shebang to use an environment-aware Bash path for portability:
-
-```bash
-#!/usr/bin/env bash
-```
-
 ## Usage
 
 Run the dashboard once:
