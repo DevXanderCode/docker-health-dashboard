@@ -313,7 +313,61 @@ print_table() {
             uptime_display="${uptime_display:0:$((W_UPTIME - 3))}..."
         fi
 
+        # Pull stats if available for this container.
+        local cpu_pct="-" mem_usage="-" mem_pct="-" net_io="-" blk_io="-"
+        local colored_cpu="${DIM}-${RESET}"
+        local colored_mem="${DIM}-${RESET}"
 
+        local stat_line="${stats_map[$short_id]:-}"
+        if [[ -n "$stat_line" ]]; then
+            cpu_pct=$(echo "$stat_line" | cut -d"|" -f2 | tr -d "%")
+            mem_usage=$(echo "$stat_line" | cut -d"|" -f3)
+            mem_pct=$(echo "$stat_line" | cut -d"|" -f4 | tr -d "%")
+            net_io=$(echo "$stat_line" | cut -d"|" -f5)
+            blk_io=$(echo "$stat_line" | cut -d"|" -f6)
+
+            colored_cpu=$(colorize_metric "$cpu_pct" "$CPU_WARN" "$CPU_CRIT")
+            colored_mem=$(colorize_metric "$mem_pct" "$MEM_WARN" "$MEM_CRIT")
+
+            # Round to 1 decimal place for display
+            cpu_pct=$(printf "%.1f%%" "$cpu_pct" 2>"/dev/null" || echo "${cpu_pct}%")
+            mem_pct=$(printf "%.1f%%" "$mem_pct" 2>"/dev/null" || echo "${mem_pct}%")
+        fi
+
+        # Truncate long mem/net/blk strings
+        local short_mem="${mem_usage:0:$((W_MEM - 2))}"
+        local short_net="${net_io:0:$((W_NET - 2))}"
+        local short_blk="${blk_io:0:$((W_BLK - 2))}"
+
+        # Print row - use printf widths for non-colored fields
+        # manually pad colored fields (color codes inflates string length)
+
+        printf "  %-${W_NAME}s" "$display_name"
+
+        # Status (colored - pad manually)
+        printf "%s" "$colored_status"
+        local status_raw_len=${#cstatus}
+        local status_pad=$(( W_STATUS - status_raw_len - 2 )) # -2 for icon and spacing
+        (( $status_pad > 0 )) && printf "%*s" "$status_pad" ""
+
+        # CPU (right-aligned, colored)
+        local cpu_raw_len=${#cpu_pct}
+        local cpu_pad=$(( W_CPU - cpu_raw_len ))
+        (( $cpu_pad > 0 )) && printf "%*s" "$cpu_pad" ""
+        printf "%s " "$colored_cpu"
+
+        # Mem usage
+        printf "%-${W_MEM}s" "$short_mem"
+
+        # Mem % (colored)
+        printf "%s" "$colored_mem"
+        local mem_pct_len=${#mem_pct}
+        local mem_pct_pad=$(( W_MEM_PCT - mem_pct_len))
+        (( $mem_pct_pad > 0 )) && printf "%*s" "$mem_pct_pad" ""
+
+        # NET IO, BLOCK IO, Uptime
+        printf " %-${W_NET}s %-${W_BLK}s %-${W_UPTIME}s\n" \
+          "$short_net" "$short_blk" "$uptime_display"
 
     done <<< "$all_containers"
 
