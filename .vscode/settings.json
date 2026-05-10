@@ -1,3 +1,13 @@
 {
-  "cSpell.words": ["cstatus", "loadavg", "subshell"]
+  "cSpell.words": [
+    "cstatus",
+    "dhealth",
+    "gsub",
+    "inetutils",
+    "loadavg",
+    "Perc",
+    "pipefail",
+    "subshell",
+    "tput"
+  ]
 }
