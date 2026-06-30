@@ -57,6 +57,25 @@ setup() {
     [ "$output" = "<R><B>⚠ unhealthy<0>" ]
 }
 
+# Regression: real docker statuses carry the health state as a suffix, e.g.
+# "Up 12 days (unhealthy)". These must be coloured by health, not fall through
+# to the dim default (the bug this fix addresses).
+@test "colorize_status: real '(unhealthy)' docker status -> red warning" {
+    run colorize_status "Up 12 days (unhealthy)"
+    [ "$output" = "<R><B>⚠ Up 12 days (unhealthy)<0>" ]
+}
+
+@test "colorize_status: real '(healthy)' docker status -> green check" {
+    run colorize_status "Up 5 weeks (healthy)"
+    [ "$output" = "<G>✔ Up 5 weeks (healthy)<0>" ]
+}
+
+# A plain "Up …" with no health check is still running -> green dot.
+@test "colorize_status: plain 'Up' status (no healthcheck) -> green dot" {
+    run colorize_status "Up 6 weeks"
+    [ "$output" = "<G><B>● Up 6 weeks<0>" ]
+}
+
 @test "colorize_status: an unknown status falls back to dim" {
     run colorize_status "some weird state"
     [ "$output" = "<D>some weird state<0>" ]
