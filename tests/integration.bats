@@ -38,6 +38,28 @@ setup() {
     [[ "$row" =~ 12\ days[[:space:]]*$ ]]
 }
 
+# Regression for column misalignment. Every container row is built entirely
+# from fixed-width columns, so with colour off each rendered row must have the
+# exact same display width. Before the fix the STATUS column overflowed by a
+# different amount per row (statuses vary: "Up 12 days (unhealthy)" is longer
+# than "Up 5 weeks (healthy)"), so rows had different lengths and every column
+# to the right of STATUS drifted out of alignment.
+@test "dhealth: all container rows render to the same width (columns stay aligned)" {
+    run bash "$DHEALTH"
+    [ "$status" -eq 0 ]
+
+    local name row
+    local -a widths=()
+    for name in prizaar_web mysql_server old_job; do
+        row=$(printf '%s\n' "$output" | grep -F "$name")
+        widths+=( "${#row}" )
+    done
+
+    # All rows must match the first row's width.
+    [ "${widths[1]}" -eq "${widths[0]}" ]
+    [ "${widths[2]}" -eq "${widths[0]}" ]
+}
+
 @test "dhealth: counts running vs stopped correctly" {
     run bash "$DHEALTH"
     [[ "$output" == *"Total: 3"* ]]

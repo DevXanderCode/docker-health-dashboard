@@ -124,44 +124,81 @@ check_dependencies() {
 # COLOR HELPERS
 # ------------------------------------------------------------------------------
 
-# Color a numeric metric against warn/crit thresholds
-# Usage: colorize_metric <value_float> <warn> <crit>
-colorize_metric() {
-    local value="$1"
-    local warn="$2"
-    local crit="$3"
+# Pick the threshold colour for a numeric metric (no value attached).
+# Usage: metric_color <value_float> <warn> <crit>
+metric_color() {
+    local value="$1" warn="$2" crit="$3" numeric
+    # Floor to an integer so "46.84" compares as 46.
+    numeric=$(awk -v v="$value" 'BEGIN { printf "%d", v }')
 
-    # Strip % if present and compare as integers (floor)
-    local numeric
-    numeric=$(echo "$value" | awk '{ printf "%d\n", $1}')
-
-    if (( "$numeric" > "$crit" )); then
-        echo "${RED}${BOLD}${value}${RESET}"
-    elif (( "$numeric" > "$warn" )); then
-        echo "${YELLOW}${value}${RESET}"
-    else
-        echo "${GREEN}${value}${RESET}"
+    if   (( numeric > crit )); then printf '%s' "${RED}${BOLD}"
+    elif (( numeric > warn )); then printf '%s' "${YELLOW}"
+    else                            printf '%s' "${GREEN}"
     fi
 }
 
-# Color Container Status
-colorize_status() {
-    local status="$1"
+# Wrap a numeric metric in its threshold colour.
+# Usage: colorize_metric <value_float> <warn> <crit>
+colorize_metric() {
+    printf '%s%s%s' "$(metric_color "$1" "$2" "$3")" "$1" "${RESET}"
+}
 
-    # Docker's status text is like "Up 12 days (unhealthy)", so we match the
-    # health suffix as a *substring* (*unhealthy* / *healthy*) rather than a
-    # prefix. Order matters: "unhealthy" must be tested before "healthy"
-    # (which is a substring of it), and both before the generic up*/running
-    # match, since a healthy/unhealthy status also contains "up".
-    case "${status,,}" in
-        *unhealthy*)        echo "${RED}${BOLD}⚠ ${status}${RESET}" ;;
-        *healthy*)          echo "${GREEN}✔ ${status}${RESET}" ;;
-        exited*|dead*)      echo "${RED}${BOLD}✖ ${status}${RESET}" ;;
-        *paused*)           echo "${YELLOW}⏸ ${status}${RESET}" ;;
-        restarting*)        echo "${MAGENTA}↻ ${status}${RESET}" ;;
-        running|up*)        echo "${GREEN}${BOLD}● ${status}${RESET}" ;;
-        *)                  echo "${DIM}${status}${RESET}" ;;
+# The single source of truth for how a docker status maps to a health icon and
+# colour. status_icon / status_color expose the two pieces separately so the
+# table renderer can pad the status to a fixed width *before* wrapping it in
+# colour (the invisible colour codes would otherwise break the width maths).
+#
+# Order matters in both: "unhealthy" must be tested before "healthy" (which is
+# a substring of it), and both before the generic up*/running case, since a
+# healthy/unhealthy status string also contains "up".
+status_icon() {
+    case "${1,,}" in
+        *unhealthy*)   printf '⚠' ;;
+        *healthy*)     printf '✔' ;;
+        exited*|dead*) printf '✖' ;;
+        *paused*)      printf '⏸' ;;
+        restarting*)   printf '↻' ;;
+        running|up*)   printf '●' ;;
+        *)             : ;;          # unknown states get no icon
     esac
+}
+
+status_color() {
+    case "${1,,}" in
+        *unhealthy*)   printf '%s' "${RED}${BOLD}" ;;
+        *healthy*)     printf '%s' "${GREEN}" ;;
+        exited*|dead*) printf '%s' "${RED}${BOLD}" ;;
+        *paused*)      printf '%s' "${YELLOW}" ;;
+        restarting*)   printf '%s' "${MAGENTA}" ;;
+        running|up*)   printf '%s' "${GREEN}${BOLD}" ;;
+        *)             printf '%s' "${DIM}" ;;
+    esac
+}
+
+# Colour a status string together with its icon, e.g. "✔ Up 5 weeks (healthy)".
+# (Convenience wrapper; the table renderer uses the two helpers above directly
+# so it can fix the column width first.)
+colorize_status() {
+    local status="$1" icon color
+    icon=$(status_icon "$status")
+    color=$(status_color "$status")
+    printf '%s%s%s%s' "$color" "${icon:+$icon }" "$status" "${RESET}"
+}
+
+# ------------------------------------------------------------------------------
+# LAYOUT HELPERS
+# ------------------------------------------------------------------------------
+
+# Pad (with trailing spaces) or truncate a PLAIN string to exactly <width>
+# display columns. Counts characters, not bytes, so single-width glyphs like the
+# status icons (✔ ✖ ⚠ ●) align correctly. Over-long cells end with "...".
+fit_cell() {
+    local text="$1" width="$2"
+    if (( ${#text} > width )); then
+        printf '%s...' "${text:0:width-3}"
+    else
+        printf '%s%*s' "$text" "$(( width - ${#text} ))" ""
+    fi
 }
 
 # Extract the human-readable uptime out of a docker status string.
@@ -247,7 +284,7 @@ print_footer() {
 print_table() {
     # Column Widths
     local W_NAME=22
-    local W_STATUS=18
+    local W_STATUS=26
     local W_CPU=10
     local W_MEM=22
     local W_MEM_PCT=10
@@ -261,8 +298,10 @@ print_table() {
     "CONTAINER" "STATUS" "CPU %" "MEM USAGE / LIMIT" "MEM %" "NET I/O" "BLOCK I/O" "UPTIME"
     printf "${RESET}"
 
-    # Separator
-    local total_w=$((W_NAME + W_STATUS + W_CPU + W_MEM + W_MEM_PCT + W_NET + W_BLK + W_UPTIME + 14))
+    # Separator rule: as wide as the 8 columns plus the 7 single-space gaps
+    # between them, so it lines up exactly under the header (the leading 2
+    # spaces are printed separately, matching the header's 2-space indent).
+    local total_w=$((W_NAME + W_STATUS + W_CPU + W_MEM + W_MEM_PCT + W_NET + W_BLK + W_UPTIME + 7))
     printf "  "
     printf "%*s" "$total_w" "" | tr " " "-"
     echo ""
@@ -321,9 +360,14 @@ print_table() {
             display_name="${display_name:0:$((W_NAME - 8))}...${display_name:$((${#display_name} - 5))}"
         fi
 
-        # Colorize Status
-        local colored_status
-        colored_status=$(colorize_status "$cstatus")
+        # Build the fixed-width, coloured STATUS cell: "<icon> <status>" padded
+        # or truncated to exactly W_STATUS columns, then wrapped in the health
+        # colour. Padding happens on the plain text, before colour is added.
+        local s_icon s_color status_cell
+        s_icon=$(status_icon "$cstatus")
+        s_color=$(status_color "$cstatus")
+        status_cell="${s_icon:+$s_icon }$cstatus"
+        status_cell=$(fit_cell "$status_cell" "$W_STATUS")
 
         # Counting Running vs stopped
         if [[ "${cstatus,,}" == *"up"* ]]; then
@@ -339,10 +383,10 @@ print_table() {
             uptime_display="${uptime_display:0:$((W_UPTIME - 3))}..."
         fi
 
-        # Pull stats if available for this container.
+        # Pull stats if available for this container. Missing stats (stopped
+        # containers) stay "-" in a dim colour.
         local cpu_pct="-" mem_usage="-" mem_pct="-" net_io="-" blk_io="-"
-        local colored_cpu="${DIM}-${RESET}"
-        local colored_mem="${DIM}-${RESET}"
+        local cpu_color="${DIM}" mem_color="${DIM}"
 
         local stat_line="${stats_map[$short_id]:-}"
         if [[ -n "$stat_line" ]]; then
@@ -352,8 +396,8 @@ print_table() {
             net_io=$(echo "$stat_line" | cut -d"|" -f5)
             blk_io=$(echo "$stat_line" | cut -d"|" -f6)
 
-            colored_cpu=$(colorize_metric "$cpu_pct" "$CPU_WARN" "$CPU_CRIT")
-            colored_mem=$(colorize_metric "$mem_pct" "$MEM_WARN" "$MEM_CRIT")
+            cpu_color=$(metric_color "$cpu_pct" "$CPU_WARN" "$CPU_CRIT")
+            mem_color=$(metric_color "$mem_pct" "$MEM_WARN" "$MEM_CRIT")
 
             # Round to 1 decimal place for display
             cpu_pct=$(printf "%.1f%%" "$cpu_pct" 2>"/dev/null" || echo "${cpu_pct}%")
@@ -365,34 +409,32 @@ print_table() {
         local short_net="${net_io:0:$((W_NET - 2))}"
         local short_blk="${blk_io:0:$((W_BLK - 2))}"
 
-        # Print row - use printf widths for non-colored fields
-        # manually pad colored fields (color codes inflates string length)
+        # Print the row, mirroring the header's "<col> <col> …" layout exactly:
+        # every column is followed by a single-space separator. Coloured cells
+        # are padded to their fixed width *before* the colour codes are added, so
+        # the invisible escape sequences never throw off the alignment.
 
-        printf "  %-${W_NAME}s" "$display_name"
+        # CONTAINER
+        printf "  %-${W_NAME}s " "$display_name"
 
-        # Status (colored - pad manually)
-        printf "%s" "$colored_status"
-        local status_raw_len=${#cstatus}
-        local status_pad=$(( W_STATUS - status_raw_len - 2 )) # -2 for icon and spacing
-        (( status_pad > 0 )) && printf "%*s" "$status_pad" ""
+        # STATUS (fixed width, coloured)
+        printf "%s%s%s " "$s_color" "$status_cell" "${RESET}"
 
-        # CPU (right-aligned, colored)
-        local cpu_raw_len=${#cpu_pct}
-        local cpu_pad=$(( W_CPU - cpu_raw_len ))
+        # CPU % (right-justified in its column, coloured)
+        local cpu_pad=$(( W_CPU - ${#cpu_pct} ))
         (( cpu_pad > 0 )) && printf "%*s" "$cpu_pad" ""
-        printf "%s " "$colored_cpu"
+        printf "%s%s%s " "$cpu_color" "$cpu_pct" "${RESET}"
 
-        # Mem usage
-        printf "%-${W_MEM}s" "$short_mem"
+        # MEM USAGE / LIMIT
+        printf "%-${W_MEM}s " "$short_mem"
 
-        # Mem % (colored)
-        printf "%s" "$colored_mem"
-        local mem_pct_len=${#mem_pct}
-        local mem_pct_pad=$(( W_MEM_PCT - mem_pct_len))
+        # MEM % (right-justified in its column, coloured)
+        local mem_pct_pad=$(( W_MEM_PCT - ${#mem_pct} ))
         (( mem_pct_pad > 0 )) && printf "%*s" "$mem_pct_pad" ""
+        printf "%s%s%s " "$mem_color" "$mem_pct" "${RESET}"
 
-        # NET IO, BLOCK IO, Uptime
-        printf " %-${W_NET}s %-${W_BLK}s %-${W_UPTIME}s\n" \
+        # NET I/O, BLOCK I/O, UPTIME
+        printf "%-${W_NET}s %-${W_BLK}s %-${W_UPTIME}s\n" \
           "$short_net" "$short_blk" "$uptime_display"
 
     done <<< "$all_containers"
