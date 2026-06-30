@@ -33,7 +33,7 @@ if tput colors &> /dev/null && (( $(tput colors) >= 8 )); then
     WHITE=$(tput setaf 7)
 else
     RESET=""BOLD=""DIM=""
-    RED=""GREEN=""YELLOW=""BLUE=""CYAN=""WHITE=""
+    RED=""GREEN=""YELLOW=""BLUE=""MAGENTA=""CYAN=""WHITE=""
 fi
 
 # ------------------------------------------------------------------------------
@@ -242,7 +242,7 @@ print_table() {
     local all_containers
     all_containers=$(docker ps -a --format "{{.ID}}|{{.Names}}|{{.Status}}") || {
         log_error "Failed to list containers."
-        return 1;=
+        return 1;
     }
 
     if [[ -z "$all_containers" ]]; then
