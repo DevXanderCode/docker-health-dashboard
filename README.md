@@ -1,5 +1,7 @@
 # Docker Health Dashboard
 
+[![CI](https://github.com/DevXanderCode/docker-health-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/DevXanderCode/docker-health-dashboard/actions/workflows/ci.yml)
+
 A lightweight terminal dashboard for monitoring Docker container health and host resources. `dhealth` makes it easy to inspect container status, CPU/memory usage, network and block I/O, and uptime at a glance.
 
 ## Key Features
@@ -131,7 +133,15 @@ When opening an issue, include:
 
 ### Testing and Validation
 
-Although there is no automated test suite today, ensure your changes are validated locally by:
+This project has an automated test suite (ShellCheck for linting, [Bats](https://github.com/bats-core/bats-core) for unit/integration tests) that runs in CI on every push. Run it locally before submitting changes:
+
+```bash
+brew install shellcheck bats-core   # macOS; on Ubuntu: apt-get install shellcheck bats
+shellcheck dhealth                  # lint
+bats tests/                         # run the test suite
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#testing-and-validation) for how the tests are organized and how to add your own. Also validate live rendering manually:
 
 - Running `./dhealth` in snapshot mode
 - Running `./dhealth -w -i 5` in watch mode
@@ -149,9 +159,10 @@ Although there is no automated test suite today, ensure your changes are validat
 This repository is kept minimal and functional. Future enhancements may include:
 
 - macOS native compatibility fixes
-- Automated tests or shellcheck validation
 - Config file support for custom thresholds
 - Additional container metrics such as restart count or health check details
+
+Done: automated tests (Bats) and ShellCheck linting now run in CI.
 
 ---
 

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Fake `df /`. dhealth reads row 2, column 5 (use%) and strips the '%'.
+# Fixed => the footer always shows "15 % used".
+cat <<'EOF'
+Filesystem     1K-blocks      Used Available Use% Mounted on
+/dev/disk1s1   500000000  75000000 425000000  15% /
+EOF

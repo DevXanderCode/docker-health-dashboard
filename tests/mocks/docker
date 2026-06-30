@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Fake `docker` used by the integration tests.
+# It answers only the subcommands dhealth actually calls, with fixed data, so
+# the tests are deterministic and need no real Docker daemon or containers.
+#
+# The real `--format` flags are ignored — we just emit rows already formatted
+# the way dhealth's format strings would produce them (pipe-separated).
+
+case "$1" in
+    info)
+        # dhealth runs `docker info` to check the daemon is reachable.
+        exit 0
+        ;;
+    ps)
+        # docker ps -a --format "{{.ID}}|{{.Names}}|{{.Status}}"
+        # Two running containers (one with a health suffix) + one stopped.
+        cat <<'EOF'
+abc123456789|prizaar_web|Up 12 days (unhealthy)
+def123456789|mysql_server|Up 5 weeks (healthy)
+ghi123456789|old_job|Exited (0) 2 hours ago
+EOF
+        ;;
+    stats)
+        # docker stats --no-stream \
+        #   --format "{{.ID}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}"
+        # Only the two running containers report stats.
+        cat <<'EOF'
+abc123456789|0.00%|37.21MiB / 7.688GiB|0.47%|1.39MB / 11MB|7.84MB / 6.73MB
+def123456789|0.38%|479.6MiB / 1GiB|46.84%|363MB / 4.66GB|128MB / 393MB
+EOF
+        ;;
+    *)
+        exit 0
+        ;;
+esac

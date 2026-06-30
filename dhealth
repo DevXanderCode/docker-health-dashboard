@@ -7,7 +7,7 @@ IFS=$'\n\t'
 REFRESH_INTERVAL=5
 WATCH_MODE=false
 VERSION="1.0.0"
-SCRIPT_NAME=$(basename $0)
+SCRIPT_NAME=$(basename "$0")
 
 # CPU/MEM thresholds for color coding
 CPU_WARN=50  # % — green below, yellow above
@@ -32,8 +32,8 @@ if tput colors &> /dev/null && (( $(tput colors) >= 8 )); then
     CYAN=$(tput setaf 6)
     WHITE=$(tput setaf 7)
 else
-    RESET=""BOLD=""DIM=""
-    RED=""GREEN=""YELLOW=""BLUE=""MAGENTA=""CYAN=""WHITE=""
+    RESET="" BOLD="" DIM=""
+    RED="" GREEN="" YELLOW="" BLUE="" MAGENTA="" CYAN="" WHITE=""
 fi
 
 # ------------------------------------------------------------------------------
@@ -70,21 +70,32 @@ ${BOLD}EXAMPLES:${RESET}
 EOF
 }
 
-while getopts ":wi:hv" opt; do
-    case $opt in
-        w) WATCH_MODE=true ;;
-        i) REFRESH_INTERVAL="$OPTARG" ;;
-        h) usage; exit 0;;
-        v) log_info "v${VERSION}"; exit 0;;
-        :) log_error "Option -${OPTARG} require an argument."; exit 1;;
-        \?) log_error "Unknown option -${OPTARG}"; exit 1;;
-    esac
-done
+# Return success (0) only for a positive integer with no leading zero: 1, 5, 10, 20…
+# Kept as its own function so it is trivially unit-testable in isolation.
+validate_interval() {
+    [[ "$1" =~ ^[1-9][0-9]*$ ]]
+}
 
-if ! [[ "$REFRESH_INTERVAL" =~ ^[1-9]+$ ]] || (( "$REFRESH_INTERVAL" < 0 )); then
-    echo "Interval must be a positive integer."
-    exit 1;
-fi
+# Parse command-line options into the global config vars. Lives in a function
+# (instead of running at the top level) so the script can be sourced by tests
+# without consuming or reacting to the test runner's own arguments.
+parse_args() {
+    while getopts ":wi:hv" opt; do
+        case $opt in
+            w) WATCH_MODE=true ;;
+            i) REFRESH_INTERVAL="$OPTARG" ;;
+            h) usage; exit 0 ;;
+            v) log_info "v${VERSION}"; exit 0 ;;
+            :) log_error "Option -${OPTARG} requires an argument."; exit 1 ;;
+            \?) log_error "Unknown option -${OPTARG}"; exit 1 ;;
+        esac
+    done
+
+    if ! validate_interval "$REFRESH_INTERVAL"; then
+        log_error "Interval must be a positive integer."
+        exit 1
+    fi
+}
 
 # ------------------------------------------------------------------------------
 # DEPENDENCY CHECK
@@ -137,15 +148,36 @@ colorize_metric() {
 colorize_status() {
     local status="$1"
 
-    case "${status,,}" in 
-        running)            echo "${GREEN}${BOLD}● running${RESET}" ;;
+    # Docker's status text is like "Up 12 days (unhealthy)", so we match the
+    # health suffix as a *substring* (*unhealthy* / *healthy*) rather than a
+    # prefix. Order matters: "unhealthy" must be tested before "healthy"
+    # (which is a substring of it), and both before the generic up*/running
+    # match, since a healthy/unhealthy status also contains "up".
+    case "${status,,}" in
+        *unhealthy*)        echo "${RED}${BOLD}⚠ ${status}${RESET}" ;;
+        *healthy*)          echo "${GREEN}✔ ${status}${RESET}" ;;
         exited*|dead*)      echo "${RED}${BOLD}✖ ${status}${RESET}" ;;
-        paused*)            echo "${YELLOW}⏸ ${status}${RESET}" ;;
+        *paused*)           echo "${YELLOW}⏸ ${status}${RESET}" ;;
         restarting*)        echo "${MAGENTA}↻ ${status}${RESET}" ;;
-        unhealthy*)         echo "${RED}${BOLD}⚠ ${status}${RESET}" ;;
-        healthy*)           echo "${GREEN}✔ ${status}${RESET}" ;;
+        running|up*)        echo "${GREEN}${BOLD}● ${status}${RESET}" ;;
         *)                  echo "${DIM}${status}${RESET}" ;;
     esac
+}
+
+# Extract the human-readable uptime out of a docker status string.
+#   "Up 3 hours"             -> "3 hours"
+#   "Up 12 days (unhealthy)" -> "12 days"   (health suffix stripped)
+#   "Exited (0) 2 days ago"  -> "-"         (not running)
+# Pure function: input in $1, result on stdout. Easy to unit-test.
+extract_uptime() {
+    local status="$1"
+    if [[ "$status" =~ ^Up\ (.+)$ ]]; then
+        local up="${BASH_REMATCH[1]}"
+        # Strip a trailing health-check suffix like " (healthy)" / " (unhealthy)".
+        printf '%s\n' "${up% (*)}"
+    else
+        printf '%s\n' "-"
+    fi
 }
 
 # ------------------------------------------------------------------------------
@@ -153,7 +185,7 @@ colorize_status() {
 # ------------------------------------------------------------------------------
 print_header() {
     local term_width
-    term_width=$(tput cols 2>/dev/null || 100)
+    term_width=$(tput cols 2>/dev/null || echo 100)
 
     local timestamp
     timestamp=$(date "+%Y-%m-%d %H:%M:%S")
@@ -190,7 +222,7 @@ print_footer() {
     mem_total=$(free -m | awk '/^Mem:/ {print $2}')
     mem_used=$(free -m | awk '/^Mem:/{print $3}')
     # mem_pct=$(awk "BEGIN {printf \"%d\", ($mem_used/$mem_total)*100}")
-    mem_pct=$(awk -v mem_used=$mem_used -v mem_total=$mem_total 'BEGIN {printf "%d", (mem_used/mem_total)*100}')
+    mem_pct=$(awk -v mem_used="$mem_used" -v mem_total="$mem_total" 'BEGIN {printf "%d", (mem_used/mem_total)*100}')
 
     local load_avg
     if [[ "$(uname)" == "Darwin" ]]; then
@@ -232,7 +264,7 @@ print_table() {
     # Separator
     local total_w=$((W_NAME + W_STATUS + W_CPU + W_MEM + W_MEM_PCT + W_NET + W_BLK + W_UPTIME + 14))
     printf "  "
-    printf "%*s" "$total_w" | tr " " "-"
+    printf "%*s" "$total_w" "" | tr " " "-"
     echo ""
 
     # ------------------------------------------------------------------------------
@@ -300,14 +332,9 @@ print_table() {
             stopped_count=$((stopped_count + 1))
         fi
 
-        # Extract Uptime from Status field. e.g ("Up 3 hours" -> "3 hours")
-        local uptime_display="-"
-        if [[ "$cstatus" =~ ^Up\ (.+)$ ]]; then
-            uptime_display="${BASH_REMATCH[1]}"
-
-            # Trim health suffix if present
-            uptime_display=$(echo "$uptime_display" | sed 's/ (.*)//')
-        fi
+        # Extract uptime from the status field, e.g. "Up 3 hours (healthy)" -> "3 hours"
+        local uptime_display
+        uptime_display=$(extract_uptime "$cstatus")
         if (( ${#uptime_display} > $(( W_UPTIME - 2 )) )); then
             uptime_display="${uptime_display:0:$((W_UPTIME - 3))}..."
         fi
@@ -347,12 +374,12 @@ print_table() {
         printf "%s" "$colored_status"
         local status_raw_len=${#cstatus}
         local status_pad=$(( W_STATUS - status_raw_len - 2 )) # -2 for icon and spacing
-        (( $status_pad > 0 )) && printf "%*s" "$status_pad" ""
+        (( status_pad > 0 )) && printf "%*s" "$status_pad" ""
 
         # CPU (right-aligned, colored)
         local cpu_raw_len=${#cpu_pct}
         local cpu_pad=$(( W_CPU - cpu_raw_len ))
-        (( $cpu_pad > 0 )) && printf "%*s" "$cpu_pad" ""
+        (( cpu_pad > 0 )) && printf "%*s" "$cpu_pad" ""
         printf "%s " "$colored_cpu"
 
         # Mem usage
@@ -362,7 +389,7 @@ print_table() {
         printf "%s" "$colored_mem"
         local mem_pct_len=${#mem_pct}
         local mem_pct_pad=$(( W_MEM_PCT - mem_pct_len))
-        (( $mem_pct_pad > 0 )) && printf "%*s" "$mem_pct_pad" ""
+        (( mem_pct_pad > 0 )) && printf "%*s" "$mem_pct_pad" ""
 
         # NET IO, BLOCK IO, Uptime
         printf " %-${W_NET}s %-${W_BLK}s %-${W_UPTIME}s\n" \
@@ -400,6 +427,7 @@ render_dashboard() {
 # ------------------------------------------------------------------------------
 
 main() {
+    parse_args "$@"
     check_dependencies
 
     if "$WATCH_MODE"; then
@@ -415,4 +443,9 @@ main() {
     fi
 }
 
-main
+# Only run the dashboard when this file is executed directly (./dhealth).
+# When it is *sourced* (e.g. by the test suite) BASH_SOURCE[0] != $0, so main
+# does NOT run — letting tests load and call individual functions in isolation.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
