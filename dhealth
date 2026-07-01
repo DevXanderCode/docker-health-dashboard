@@ -288,11 +288,19 @@ print_footer() {
     echo "      ${GREEN}Running: ${running}${RESET}"
     echo "${RED}Stopped/Other: ${stopped}${RESET}"
 
-    # System-level resource summary
+    # System-level resource summary.
+    #
+    # GNU free (Linux) prints bare numbers: "Mem:  7872  3670  ...", so $2/$3
+    # are the total/used columns directly. inetutils' free (the version macOS
+    # users get from `brew install inetutils`, per this README) prints a unit
+    # after every number instead: "Mem:  16384.00 MB  9461.30 MB  ...", which
+    # shifts every field after the first by one and made $3 read the literal
+    # word "MB" instead of the used value. Stripping "MB" from the record
+    # before field-splitting (the gsub on $0 forces awk to re-split) makes both
+    # formats line up the same way, and printf "%d" floors any decimals.
     local mem_total mem_used mem_pct
-    mem_total=$(free -m | awk '/^Mem:/ {print $2}')
-    mem_used=$(free -m | awk '/^Mem:/{print $3}')
-    # mem_pct=$(awk "BEGIN {printf \"%d\", ($mem_used/$mem_total)*100}")
+    mem_total=$(free -m | awk '/^Mem:/ { gsub(/MB/, "", $0); printf "%d", $2 }')
+    mem_used=$(free -m | awk '/^Mem:/ { gsub(/MB/, "", $0); printf "%d", $3 }')
     mem_pct=$(awk -v mem_used="$mem_used" -v mem_total="$mem_total" 'BEGIN {printf "%d", (mem_used/mem_total)*100}')
 
     local load_avg

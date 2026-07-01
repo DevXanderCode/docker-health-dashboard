@@ -72,6 +72,16 @@ setup() {
     [[ "$output" == *"3670MB / 7872MB"* ]]
 }
 
+# Regression: macOS's `free` (installed via `brew install inetutils`, per this
+# README's own macOS instructions) prints a "MB" unit after every number
+# instead of GNU free's bare numbers. That shifts the awk field positions, so
+# the used-memory column used to read the literal word "MB" instead of a
+# value, rendering "Host Ram: 0 % (MBMB / 7872MB)".
+@test "dhealth: shows host memory from free (macOS/inetutils unit-suffixed output)" {
+    FREE_STYLE=inetutils run bash "$DHEALTH"
+    [[ "$output" == *"3670MB / 7872MB"* ]]
+}
+
 @test "dhealth: rejects an invalid -i interval" {
     run bash "$DHEALTH" -w -i 0
     [ "$status" -ne 0 ]
