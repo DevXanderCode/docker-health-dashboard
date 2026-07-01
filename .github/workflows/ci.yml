@@ -1,0 +1,41 @@
+name: CI
+
+# Run on every push and on every pull request so problems are caught before
+# they ever reach the main branch.
+on:
+  push:
+  pull_request:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Static analysis: lint the shell scripts without executing them.
+  # ---------------------------------------------------------------------------
+  shellcheck:
+    name: 🧪 ShellCheck (lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      # .shellcheckrc (shell=bash, disabled checks) is picked up automatically.
+      - name: Lint dhealth and the test mocks
+        run: shellcheck dhealth tests/mocks/* tests/helpers.bash
+
+  # ---------------------------------------------------------------------------
+  # Tests: run the bats unit + integration suite.
+  # ---------------------------------------------------------------------------
+  bats:
+    name: Bats (tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install Bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: 🎬 Run the test suite
+        run: bats tests/

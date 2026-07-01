@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake `tput`. Reports a fixed terminal width and *no* colour support, so
+# dhealth emits plain, un-coloured text that the tests can match exactly.
+case "$1" in
+    cols)   echo 200 ;;   # terminal width used for the header rule
+    colors) echo 0 ;;     # < 8  => dhealth disables all colour
+    *)      : ;;          # sgr0 / bold / dim / setaf … -> emit nothing
+esac

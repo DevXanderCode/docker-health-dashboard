@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake `free -m`. dhealth reads the "Mem:" line — column 2 (total) and 3 (used).
+# Fixed numbers => the footer always shows "(3670MB / 7872MB)".
+cat <<'EOF'
+              total        used        free      shared  buff/cache   available
+Mem:           7872        3670         200          10        4000        3900
+Swap:             0           0           0
+EOF

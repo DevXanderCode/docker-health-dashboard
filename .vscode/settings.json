@@ -3,10 +3,13 @@
     "cstatus",
     "dhealth",
     "gsub",
+    "healthcheck",
     "inetutils",
     "loadavg",
     "Perc",
     "pipefail",
+    "shellcheck",
+    "sourceable",
     "subshell",
     "tput"
   ]

@@ -65,13 +65,59 @@ This project is implemented in Bash and aims for simplicity, robustness, and rea
 
 ## Testing and Validation
 
-Although there is no automated test suite at this time, please validate your changes manually:
+This project has an automated test suite. **Run it before opening a pull request** — the same checks run in CI on every push.
+
+### Tooling
+
+Two tools are used. Install them once:
+
+```bash
+# macOS (Homebrew)
+brew install shellcheck bats-core
+
+# Debian/Ubuntu
+sudo apt-get install -y shellcheck bats
+```
+
+- **[ShellCheck](https://www.shellcheck.net/)** — static analysis (linting). Finds bugs without running the script (unquoted variables, broken regexes, dead code). Configured by `.shellcheckrc`.
+- **[Bats](https://github.com/bats-core/bats-core)** (Bash Automated Testing System) — runs the unit and integration tests in `tests/`.
+
+### Running the checks
+
+```bash
+shellcheck dhealth        # lint — must report nothing (exit 0)
+bats tests/               # run all tests
+```
+
+### How the tests are organized
+
+| File | What it covers |
+|------|----------------|
+| `tests/unit_uptime.bats` | `extract_uptime` — parsing the uptime out of a docker status string |
+| `tests/unit_validation.bats` | `validate_interval` — the `-i` refresh-interval rule |
+| `tests/unit_colorize.bats` | `colorize_metric` / `colorize_status` — threshold and status colouring |
+| `tests/integration.bats` | the whole script run end-to-end against a fake `docker` |
+| `tests/mocks/` | stand-in `docker`/`free`/`df`/`tput` so tests need no real Docker host |
+| `tests/helpers.bash` | shared setup (`load_dhealth`, mock `PATH`) |
+
+The script is written to be **sourceable**: a guard at the bottom
+(`if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then main "$@"; fi`) means tests can
+`source ./dhealth` to load its functions without running the dashboard.
+
+### Writing a test for a new function
+
+1. Keep logic in a small, pure function (input via arguments, result via stdout/exit code).
+2. Add a `@test` block. Use `run <fn> <args>`, then assert on `$status` and `$output`.
+3. Make sure the test **fails when the code is wrong** — temporarily break the function and confirm the test goes red before trusting it.
+
+### Manual validation
+
+Automated tests don't cover live rendering against a real daemon, so also:
 
 - Run `./dhealth` in snapshot mode.
 - Run `./dhealth -w -i 5` in watch mode.
 - Confirm container status, CPU/memory metrics, and host summary render without errors.
 - Verify threshold coloring and formatting across different terminal widths.
-- Check that help and error messages remain accurate.
 
 ## Documentation
 

@@ -1,0 +1,12 @@
+# ShellCheck configuration for the Docker Health Dashboard.
+# https://github.com/koalaman/shellcheck/wiki
+
+# The script has no .sh extension, so tell ShellCheck which dialect to assume.
+shell=bash
+
+# SC2059: "Don't use variables in the printf format string."
+# We deliberately embed our own constant terminal colour codes (RED, BOLD,
+# RESET, …) directly inside printf format strings for readability. These values
+# are script-defined constants, never user input, so the format-string-injection
+# risk SC2059 guards against does not apply here. Suppressed project-wide.
+disable=SC2059
