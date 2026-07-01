@@ -220,21 +220,55 @@ extract_uptime() {
 # ------------------------------------------------------------------------------
 # HEADER / FOOTER
 # ------------------------------------------------------------------------------
+# Best-effort width of the real terminal, in columns.
+#
+# We deliberately avoid `cols=$(tput cols)`: inside a command substitution tput's
+# stdout is a pipe, so it can't read the live window size and falls back to the
+# static terminfo width (usually 80) — which is why the title bar came out short.
+# `stty size` reads straight from the controlling terminal (/dev/tty), so it
+# reports the true size even when our own stdout is captured or piped.
+terminal_width() {
+    local size cols
+
+    if size=$(stty size 2>/dev/null </dev/tty); then
+        cols=${size#* }                      # "rows cols" -> "cols"
+        if [[ "$cols" =~ ^[1-9][0-9]*$ ]]; then printf '%s' "$cols"; return; fi
+    fi
+
+    # Fallbacks: an exported COLUMNS, then tput, then a sane default.
+    if [[ "${COLUMNS:-}" =~ ^[1-9][0-9]*$ ]]; then printf '%s' "$COLUMNS"; return; fi
+    if cols=$(tput cols 2>/dev/null) && [[ "$cols" =~ ^[1-9][0-9]*$ ]]; then
+        printf '%s' "$cols"; return
+    fi
+
+    printf '80'
+}
+
 print_header() {
     local term_width
-    term_width=$(tput cols 2>/dev/null || echo 100)
+    term_width=$(terminal_width)
 
     local timestamp
     timestamp=$(date "+%Y-%m-%d %H:%M:%S")
 
     local title=" 🐳 Docker Health Dashboard "
-    local title_len=${#title}
-    local padding=$(( (term_width - title_len) / 2 ))
+    # The whale 🐳 renders two columns wide but counts as a single character, so
+    # its visible width is one more than the character count.
+    local title_width=$(( ${#title} + 1 ))
+
+    # Fill the whole terminal width: dashes on the left, the title, dashes on
+    # the right. `right` is taken from the remainder (not a copy of `left`) so
+    # the odd column — when the gap can't be split evenly — is absorbed on the
+    # right and the dashes always reach the far edge.
+    local left=$(( (term_width - title_width) / 2 ))
+    (( left < 0 )) && left=0
+    local right=$(( term_width - title_width - left ))
+    (( right < 0 )) && right=0
 
     echo ""
-    printf '%*s' "$padding" '' | tr ' ' '-'
+    printf '%*s' "$left" '' | tr ' ' '-'
     printf '%s' "${BOLD}${CYAN}${title}${RESET}"
-    printf '%*s\n' "$padding" '' | tr ' ' '-'
+    printf '%*s\n' "$right" '' | tr ' ' '-'
     printf " ${DIM}Host:${RESET} ${WHITE}$(hostname)${RESET}   ${DIM}Time:${RESET}${WHITE}${timestamp}${RESET}"
 
     if $WATCH_MODE; then
