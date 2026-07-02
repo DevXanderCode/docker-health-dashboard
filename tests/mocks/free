@@ -1,8 +1,25 @@
 #!/usr/bin/env bash
 # Fake `free -m`. dhealth reads the "Mem:" line — column 2 (total) and 3 (used).
-# Fixed numbers => the footer always shows "(3670MB / 7872MB)".
-cat <<'EOF'
+# Fixed numbers => the footer always shows "(3670MB / 7872MB)" either way.
+#
+# Two output styles, selected by $FREE_STYLE, mirroring the two real-world
+# `free` implementations dhealth has to parse:
+#   gnu       (default) - GNU coreutils/procps, as shipped on Linux. Bare
+#             numbers, no unit suffix: "Mem:  7872  3670  ...".
+#   inetutils - the `free` you get from `brew install inetutils` on macOS
+#             (this README's own suggested install). Prints a unit after every
+#             number: "Mem:  7872.00 MB  3670.00 MB  ...", which shifts the
+#             awk field positions unless dhealth strips the unit first.
+if [[ "${FREE_STYLE:-gnu}" == "inetutils" ]]; then
+    cat <<'EOF'
+              total        used        free      shared  buff/cache   available
+Mem:        7872.00 MB  3670.00 MB   200.00 MB       10B   4000.00 MB  3900.00 MB
+Swap:          0.00 MB     0.00 MB     0.00 MB
+EOF
+else
+    cat <<'EOF'
               total        used        free      shared  buff/cache   available
 Mem:           7872        3670         200          10        4000        3900
 Swap:             0           0           0
 EOF
+fi

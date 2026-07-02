@@ -1,10 +1,15 @@
 name: CI
 
-# Run on every push and on every pull request so problems are caught before
+# Run on every pull request to main so problems are caught before
 # they ever reach the main branch.
 on:
-  push:
   pull_request:
+    branches: ["main"]
+
+# Automatically cancel older builds on the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ---------------------------------------------------------------------------

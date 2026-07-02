@@ -4,6 +4,8 @@
 
 A lightweight terminal dashboard for monitoring Docker container health and host resources. `dhealth` makes it easy to inspect container status, CPU/memory usage, network and block I/O, and uptime at a glance.
 
+![dhealth demo](docs/assets/demo.gif)
+
 ## Key Features
 
 - Real-time Docker container health insights
