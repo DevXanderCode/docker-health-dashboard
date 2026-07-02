@@ -32,8 +32,38 @@ This dashboard is ideal for developers and operators who need an unobtrusive ter
 
 ## Installation
 
-1. Clone this repository or copy the `dhealth` script into your project directory.
-2. Ensure the script is executable:
+### Option 1: Install script (recommended for servers/VPS)
+
+Downloads the latest release, verifies its SHA-256 checksum, and installs
+`dhealth` onto your `PATH` (no `sudo` required):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DevXanderCode/docker-health-dashboard/main/install.sh | bash
+```
+
+Pin a specific version instead of the latest release:
+
+```bash
+DHEALTH_VERSION=v1.0.0 curl -fsSL https://raw.githubusercontent.com/DevXanderCode/docker-health-dashboard/main/install.sh | bash
+```
+
+Then run it from anywhere:
+
+```bash
+dhealth
+```
+
+### Option 2: Homebrew (macOS/Linuxbrew)
+
+```bash
+brew tap DevXanderCode/dhealth
+brew install dhealth
+```
+
+### Option 3: Manual
+
+Clone this repository or copy the `dhealth` script into your project
+directory, then make it executable:
 
 ```bash
 chmod +x ./dhealth
