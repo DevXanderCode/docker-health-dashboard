@@ -60,6 +60,10 @@ brew tap DevXanderCode/dhealth
 brew install dhealth
 ```
 
+The formula itself lives in a dedicated tap repo,
+[DevXanderCode/homebrew-dhealth](https://github.com/DevXanderCode/homebrew-dhealth)
+— that's the single source of truth, not a copy in this repo.
+
 ### Option 3: Manual
 
 Clone this repository or copy the `dhealth` script into your project
