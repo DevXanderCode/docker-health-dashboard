@@ -1,0 +1,72 @@
+name: Release
+
+# Fires when a version tag (e.g. "v1.2.0") is pushed. This is the one and only
+# way a release gets published — nobody runs `gh release create` by hand, so
+# every release goes through the same checks below.
+on:
+  push:
+    tags: ["v*"]
+
+# The default GITHUB_TOKEN is read-only unless a job opts into more. Creating
+# a release and uploading assets requires write access to repo contents.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: 🚀 Build and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------------
+      # Guard rail: refuse to publish a release whose tag doesn't match the
+      # VERSION baked into dhealth itself. Without this, it's easy to tag
+      # "v1.3.0" while dhealth still reports "v${VERSION}" == "1.2.0" from
+      # `dhealth -v` — a silent, confusing mismatch users would only notice
+      # after installing.
+      # ---------------------------------------------------------------------
+      - name: Verify tag matches dhealth's VERSION
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          script_version=$(grep -m1 '^VERSION=' dhealth | cut -d'"' -f2)
+
+          if [[ "$tag" != "$script_version" ]]; then
+            echo "::error::Tag v${tag} does not match dhealth's VERSION=\"${script_version}\"."
+            echo "Update the VERSION constant in dhealth to match before tagging."
+            exit 1
+          fi
+
+          echo "Tag v${tag} matches dhealth's VERSION. Proceeding."
+
+      # ---------------------------------------------------------------------
+      # Never publish a release that fails the same checks every PR has to
+      # pass. A tag push skips branch protection, so this is the only gate
+      # standing between a bad script and a public download.
+      # ---------------------------------------------------------------------
+      - name: Install ShellCheck and Bats
+        run: sudo apt-get update && sudo apt-get install -y shellcheck bats
+
+      - name: Lint
+        run: shellcheck dhealth tests/mocks/* tests/helpers.bash
+
+      - name: Test
+        run: bats tests/
+
+      # ---------------------------------------------------------------------
+      # The actual release artifact: dhealth itself, plus a checksum file
+      # install.sh (and anyone doing a manual verify) can check the download
+      # against. `sha256sum` writes "<hash>  <filename>" — the same format
+      # `sha256sum -c` expects for verification.
+      # ---------------------------------------------------------------------
+      - name: Generate checksums
+        run: sha256sum dhealth > checksums.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dhealth
+            checksums.txt
+          generate_release_notes: true
